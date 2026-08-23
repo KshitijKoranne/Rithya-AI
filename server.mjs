@@ -100,6 +100,11 @@ async function fetchProvider(url, options) {
     if (!response.ok) {
       const error = new Error("Voice provider request failed");
       error.statusCode = response.status;
+      error.providerEndpoint = new URL(url).pathname;
+      error.providerMessage = cleanText(
+        payload.error?.message || payload.message || payload.detail || payload.raw,
+        300,
+      );
       throw error;
     }
     return payload;
@@ -254,7 +259,12 @@ const server = http.createServer(async (request, response) => {
       sendJson(response, 200, await answerTurn(payload));
     } catch (error) {
       const statusCode = error.statusCode || 502;
-      console.error("voice turn failed", statusCode);
+      console.error(
+        "voice turn failed",
+        statusCode,
+        error.providerEndpoint || "local",
+        error.providerMessage || error.message || "unknown error",
+      );
       sendJson(response, statusCode, {
         error: "voice_turn_failed",
         message: "The lamp could not finish that answer. Please try again.",
