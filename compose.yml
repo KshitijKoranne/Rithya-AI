@@ -1,0 +1,9 @@
+services:
+  little-lamp:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      SARVAM_API_KEY: ${SARVAM_API_KEY}

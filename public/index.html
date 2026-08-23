@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f5f0e6" />
+    <meta name="description" content="A gentle voice helper for curious little questions." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="stylesheet" href="/styles.css?v=4" />
+    <title>Little Lamp</title>
+  </head>
+  <body data-state="idle">
+    <div class="app-shell">
+      <header class="topbar" aria-label="Little Lamp">
+        <a class="brand" href="/" aria-label="Little Lamp home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M16 4.5c-5.2 0-9.2 3.8-9.2 8.7 0 3.2 1.6 5.3 3.7 7.4 1.2 1.2 1.8 2.3 1.9 3.8h7.2c.1-1.5.7-2.6 1.9-3.8 2.1-2.1 3.7-4.2 3.7-7.4 0-4.9-4-8.7-9.2-8.7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="M12.7 27h6.6M13.7 29.3h4.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M16 9v5.4l2.7 1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="brand-name">little lamp</span>
+        </a>
+        <div class="ready-pill" id="ready-pill" aria-live="polite">
+          <span class="ready-dot" aria-hidden="true"></span>
+          <span id="ready-label">ready to listen</span>
+        </div>
+      </header>
+
+      <main id="main-content" class="main-content">
+        <section class="welcome-block" aria-labelledby="page-title">
+          <p class="eyebrow">for curious little minds</p>
+          <h1 id="page-title">Ask the little lamp.</h1>
+          <p class="intro">Hold the button. Ask anything you are wondering about.</p>
+        </section>
+
+        <section class="lamp-stage" aria-label="Voice question area">
+          <div class="orbit orbit-one" aria-hidden="true"></div>
+          <div class="orbit orbit-two" aria-hidden="true"></div>
+          <div class="orbit orbit-three" aria-hidden="true"></div>
+          <div class="lamp" aria-hidden="true">
+            <div class="lamp-glow"></div>
+            <div class="lamp-core">
+              <svg class="lamp-wave" viewBox="0 0 120 64" fill="none">
+                <path d="M4 34c9 0 9-13 18-13s9 25 18 25 9-38 18-38 9 50 18 50 9-25 18-25 9 13 18 13" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="lamp-spark spark-one"></span>
+              <span class="lamp-spark spark-two"></span>
+            </div>
+          </div>
+
+          <article class="answer-card" id="answer-card" hidden aria-live="polite">
+            <p class="answer-label" id="answer-label">a little answer</p>
+            <p class="answer-text" id="answer-text"></p>
+            <div class="answer-actions">
+              <button class="quiet-button" id="repeat-button" type="button">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3L19.5 8.9M19.5 5v3.9h-3.9M19.5 12a7.5 7.5 0 0 1-12.8 5.3L4.5 15.1M4.5 19v-3.9h3.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>say it again</span>
+              </button>
+              <button class="quiet-button quiet-button-accent" id="ask-again-button" type="button">
+                <span>ask again</span>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </article>
+        </section>
+
+        <section class="control-dock" aria-label="Ask a question">
+          <div class="status-line" aria-live="polite">
+            <span class="state-kicker" id="state-kicker">ready</span>
+            <strong id="status-copy">Hold the button</strong>
+                <span id="status-helper">Your voice can be Hindi, Marathi, Gujarati, English, or mixed.</span>
+          </div>
+
+          <button class="talk-button" id="talk-button" type="button" aria-label="Hold to ask a question">
+            <span class="talk-icon" aria-hidden="true">
+              <svg viewBox="0 0 32 32" fill="none">
+                <rect x="10.5" y="4.5" width="11" height="16" rx="5.5" stroke="currentColor" stroke-width="2"/>
+                <path d="M6.5 16.5a9.5 9.5 0 0 0 19 0M16 26v-4M11.5 27.5h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span id="talk-label">hold to ask</span>
+          </button>
+
+          <button class="example-question" id="example-question" type="button">
+            <span class="example-prefix">try asking</span>
+            <span>“Why does the moon follow our car?”</span>
+          </button>
+        </section>
+      </main>
+
+      <footer class="footer-note">
+        <span>one question at a time</span>
+        <span class="language-list">हिन्दी · मराठी · ગુજરાતી · English</span>
+      </footer>
+    </div>
+
+    <script type="module" src="/app.js?v=4"></script>
+  </body>
+</html>
