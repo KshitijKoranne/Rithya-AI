@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icon.svg" />
-    <link rel="stylesheet" href="/styles.css?v=8" />
+    <link rel="stylesheet" href="/styles.css?v=9" />
     <title>Little Lamp</title>
   </head>
   <body data-state="idle">
@@ -53,20 +53,6 @@
             </div>
           </div>
 
-          <article class="answer-card" id="answer-card" hidden aria-live="polite">
-            <p class="answer-label" id="answer-label">a little answer</p>
-            <p class="answer-text" id="answer-text"></p>
-            <div class="answer-actions">
-              <button class="quiet-button" id="repeat-button" type="button">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3L19.5 8.9M19.5 5v3.9h-3.9M19.5 12a7.5 7.5 0 0 1-12.8 5.3L4.5 15.1M4.5 19v-3.9h3.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                <span>say it again</span>
-              </button>
-              <button class="quiet-button quiet-button-accent" id="ask-again-button" type="button">
-                <span>ask again</span>
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-            </div>
-          </article>
         </section>
 
         <section class="control-dock" aria-label="Ask a question">
@@ -76,7 +62,7 @@
                 <span id="status-helper">Your voice can be Hindi, Marathi, Gujarati, English, or mixed.</span>
           </div>
 
-          <button class="talk-button" id="talk-button" type="button" aria-label="Hold to ask a question">
+          <button class="talk-button" id="talk-button" type="button" aria-label="Hold to ask a question" disabled>
             <span class="talk-icon" aria-hidden="true">
               <svg viewBox="0 0 32 32" fill="none">
                 <rect x="10.5" y="4.5" width="11" height="16" rx="5.5" stroke="currentColor" stroke-width="2"/>
@@ -95,6 +81,6 @@
       </footer>
     </div>
 
-    <script type="module" src="/app.js?v=5"></script>
+    <script type="module" src="/app.js?v=6"></script>
   </body>
 </html>

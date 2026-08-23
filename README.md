@@ -1,6 +1,6 @@
 # Little Lamp
 
-Little Lamp is a private, voice-first question helper for a six-year-old child.
+Little Lamp is a private, voice-only question helper for a six-year-old child. The child asks by voice and hears one short answer; the answer text is not shown.
 
 ## Run it
 
@@ -46,4 +46,5 @@ The app listens on port 3000 inside the container. Set `HOST_PORT` in `.env` if 
 
 ```bash
 npm run check
+npm run smoke
 ```

@@ -30,5 +30,5 @@ export function decodeAudio(value) {
 
   if (!encoded || encoded.length % 4 === 1 || !/^[A-Za-z0-9+/]*={0,2}$/u.test(encoded)) return null;
   const buffer = Buffer.from(encoded, "base64");
-  return buffer.length > 0 ? buffer : null;
+  return buffer.length >= 128 ? buffer : null;
 }

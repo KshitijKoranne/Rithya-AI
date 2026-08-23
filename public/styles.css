@@ -150,7 +150,6 @@ a:focus-visible {
 }
 
 .eyebrow,
-.answer-label,
 .state-kicker,
 .example-prefix {
   margin: 0;
@@ -321,81 +320,6 @@ h1 {
   background: var(--color-paper);
 }
 
-.answer-card {
-  position: absolute;
-  z-index: 4;
-  bottom: -4px;
-  width: min(calc(100% - var(--space-6)), 420px);
-  padding: var(--space-5) var(--space-6) var(--space-4);
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-card);
-  background: var(--color-surface-translucent);
-  box-shadow: var(--shadow-card);
-  animation: answer-in var(--dur-mid) var(--ease-out) both;
-  text-align: left;
-}
-
-.answer-text {
-  margin: var(--space-2) 0 var(--space-4);
-  font-size: 1.1rem;
-  font-weight: 700;
-  line-height: 1.4;
-}
-
-.answer-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.quiet-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
-}
-
-.quiet-button {
-  gap: var(--space-2);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--color-ink-soft);
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.quiet-button svg {
-  width: 18px;
-  height: 18px;
-}
-
-.quiet-button:hover,
-.quiet-button:focus-visible {
-  background: var(--color-paper-deep);
-  color: var(--color-ink);
-}
-
-.quiet-button:active {
-  transform: scale(0.97);
-}
-
-.quiet-button-accent {
-  border-color: transparent;
-  background: var(--color-ink);
-  color: var(--color-paper);
-}
-
-.quiet-button-accent:hover,
-.quiet-button-accent:focus-visible {
-  background: var(--color-accent-deep);
-  color: var(--color-paper);
-}
-
 .control-dock {
   display: flex;
   flex-direction: column;
@@ -486,6 +410,18 @@ h1 {
   background: var(--color-danger);
 }
 
+.talk-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+  transform: none;
+}
+
+.talk-button:disabled:hover {
+  background: var(--color-accent);
+  box-shadow: 0 12px 22px var(--color-accent-shadow-soft), inset 0 1px 0 var(--color-white-shine);
+  transform: none;
+}
+
 .footer-note {
   margin-top: var(--space-4);
   color: var(--color-ink-faint);
@@ -550,11 +486,6 @@ body[data-state="error"] .orbit {
 @keyframes wave-breathe {
   from { transform: scaleX(0.88); opacity: 0.7; }
   to { transform: scaleX(1.08); opacity: 1; }
-}
-
-@keyframes answer-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (min-width: 768px) {

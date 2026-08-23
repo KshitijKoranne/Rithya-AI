@@ -1,4 +1,5 @@
 import http from "node:http";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,8 +8,14 @@ import { audioFileName, decodeAudio, normalizeMimeType } from "./audio.mjs";
 const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.join(root, "public");
 const port = Number(process.env.PORT || 3000);
-const maxBodyBytes = 10 * 1024 * 1024;
+const maxBodyBytes = 2 * 1024 * 1024;
+const requestTimeoutMs = 30_000;
+const rateLimitWindowMs = 60_000;
+const rateLimitMax = 20;
+const maxConcurrentTurns = 4;
 const sarvamKey = process.env.SARVAM_API_KEY?.trim();
+let activeTurns = 0;
+const rateBuckets = new Map();
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -19,7 +26,7 @@ const mimeTypes = {
   ".webmanifest": "application/manifest+json; charset=utf-8",
 };
 
-const safetyPattern = /medicine|tablet|pill|दवा|गोली|औषध|દવા|ગોળી|hurt|bleed|blood|fire|knife|stranger|address|password|phone number|emergency|ambulance|suicide|kill|die/i;
+const safetyPattern = /(?:\b(?:medicine|tablet|pill|medication|hurt|injured|bleed|blood|fire|smoke|gas leak|knife|gun|weapon|stranger|address|password|phone number|emergency|ambulance|suicide|kill|die|swallowed|coin|choking|dizzy|scared|danger)\b|दवा|गोली|औषध|चोट|जख्म|दर्द|खून|आग|धुआँ|गैस|चाकू|बंदूक|हथियार|अजनबी|पता|पासवर्ड|फोन|आपातकाल|एम्बुलेंस|आत्महत्या|मरना|निगल|सिक्का|घुटन|चक्कर|डर|खतरा|दुखापत|रक्त|धूर|गॅस|शस्त्र|अनोळखी|आपत्कालीन|रुग्णवाहिका|गिळले|नाणे|गुदमरणे|भीती|धोका|દવા|ગોળી|ઔષધ|ઈજા|લોહી|આગ|ધુમાડો|ગેસ|છરી|બંદૂક|હથિયાર|અજાણ્યો|સરનામું|પાસવર્ડ|ફોન|ઇમરજન્સી|એમ્બ્યુલન્સ|આત્મહત્યા|ગળી|સિક્કો|ગૂંગળામણ|ચક્કર|ડર|જોખમ)/iu;
 
 const languageNameByCode = {
   "en-IN": "English",
@@ -27,10 +34,36 @@ const languageNameByCode = {
   "mr-IN": "Marathi",
   "gu-IN": "Gujarati",
 };
+const supportedLanguageCodes = new Set(Object.keys(languageNameByCode));
+const securityHeaders = {
+  "Content-Security-Policy": "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; connect-src 'self'; img-src 'self' data:; media-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; worker-src 'self'",
+  "Permissions-Policy": "microphone=(self)",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
+};
+const publicMessages = {
+  invalid_json: "I did not catch that. Please hold the button and try again.",
+  invalid_request: "I did not catch a question. Please try again.",
+  no_question: "I did not hear a question. Hold the button and try again.",
+  request_too_large: "That question is too large. Please try again.",
+  not_configured: "The lamp needs a grown-up to finish setting it up.",
+  rate_limited: "Let’s take a short pause, then ask again.",
+  busy: "The lamp is helping another question. Please try again.",
+  timeout: "That answer took too long. Please try again.",
+  provider_unavailable: "The lamp needs a little rest. Please try again.",
+};
+const safeFallbackByLanguage = {
+  "en-IN": "Please ask Mama, Papa, or a trusted grown-up. They can help keep you safe.",
+  "hi-IN": "मम्मी, पापा या किसी भरोसेमंद बड़े से पूछो। वे तुम्हें सुरक्षित रखेंगे।",
+  "mr-IN": "आई, बाबा किंवा एखाद्या विश्वासू मोठ्या व्यक्तीला विचारा. ते तुम्हाला सुरक्षित ठेवतील.",
+  "gu-IN": "મમ્મી, પપ્પા અથવા કોઈ વિશ્વાસુ મોટા વ્યક્તિને પૂછો. તેઓ તમને સુરક્ષિત રાખશે.",
+};
 
 const systemPrompt = `You are Little Lamp, a gentle voice helper for a six-year-old child.
 Answer in the same language and script style as the child's question. Hindi, Marathi, Gujarati, English, and natural code-mixing are welcome.
-Use one short sentence, or at most two very short sentences. Keep the answer under 180 characters. If the question is in English, answer only in English. Never switch languages unless the child asks.
+Use one simple sentence, or at most two very short sentences. Keep the answer under 140 characters. If the question is in English, answer only in English. Never switch languages unless the child asks.
 Explain like a kind parent: clear, true, calm, and never silly.
 Do not ask for names, addresses, school details, passwords, phone numbers, or private family information.
 Do not give medical, emergency, dangerous, or stranger advice. If a question is about safety, tell the child to ask Mama, Papa, or another trusted grown-up.
@@ -41,8 +74,7 @@ function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
+    ...securityHeaders,
   });
   response.end(body);
 }
@@ -51,8 +83,7 @@ function sendText(response, statusCode, body, contentType) {
   response.writeHead(statusCode, {
     "Content-Type": contentType,
     "Cache-Control": "no-cache",
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
+    ...securityHeaders,
   });
   response.end(body);
 }
@@ -61,16 +92,22 @@ function readRequestBody(request) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let received = 0;
+    let tooLarge = false;
     request.on("data", (chunk) => {
       received += chunk.length;
       if (received > maxBodyBytes) {
-        reject(Object.assign(new Error("Request is too large"), { statusCode: 413 }));
-        request.destroy();
+        tooLarge = true;
         return;
       }
       chunks.push(chunk);
     });
-    request.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    request.on("end", () => {
+      if (tooLarge) {
+        reject(appError(413, "request_too_large", "Request is too large"));
+        return;
+      }
+      resolve(Buffer.concat(chunks).toString("utf8"));
+    });
     request.on("error", reject);
   });
 }
@@ -83,7 +120,7 @@ function inferLanguage(text) {
   if (/[\u0A80-\u0AFF]/u.test(text)) return "gu-IN";
   if (/[\u0900-\u097F]/u.test(text)) {
     // ponytail: a small fallback heuristic; Sarvam STT remains the source of truth for real voice input.
-    if (/[ळऱॲ]|आहे|मला|तुला|काय|कुठे|पाऊस|माझं|माझे/u.test(text)) return "mr-IN";
+    if (/[ळऱॲ]|आहे|मला|तुला|काय|कुठे|पाऊस|माझं|माझे|मी|तू|तुम्ही|घेऊ|औषध/u.test(text)) return "mr-IN";
     return "hi-IN";
   }
   return "en-IN";
@@ -92,18 +129,69 @@ function inferLanguage(text) {
 function resolveLanguage(providerLanguage, transcript) {
   const inferredLanguage = inferLanguage(transcript);
   if (inferredLanguage === "en-IN") return inferredLanguage;
-  return providerLanguage && providerLanguage !== "unknown" ? providerLanguage : inferredLanguage;
+  if (inferredLanguage === "gu-IN" || inferredLanguage === "mr-IN") return inferredLanguage;
+  return supportedLanguageCodes.has(providerLanguage) ? providerLanguage : inferredLanguage;
 }
 
-function safeFallback() {
-  return "Please ask Mama, Papa, or another trusted grown-up about that. They can help you stay safe.";
+function safeFallback(languageCode) {
+  return safeFallbackByLanguage[languageCode] || safeFallbackByLanguage["en-IN"];
 }
 
-async function fetchProvider(url, options) {
+function appError(statusCode, code, message = publicMessages[code]) {
+  const error = new Error(message || code);
+  error.statusCode = statusCode;
+  error.code = code;
+  error.publicMessage = publicMessages[code] || publicMessages.provider_unavailable;
+  return error;
+}
+
+function clientKey(request) {
+  const forwarded = request.headers["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded.trim()) return forwarded.split(",", 1)[0].trim();
+  return request.socket.remoteAddress || "unknown";
+}
+
+function checkRateLimit(key) {
+  const now = Date.now();
+  // ponytail: process-local guard; move this to the edge if the app gains replicas.
+  if (rateBuckets.size >= 10_000) rateBuckets.clear();
+  for (const [bucketKey, bucket] of rateBuckets) {
+    if (now - bucket.startedAt >= rateLimitWindowMs) rateBuckets.delete(bucketKey);
+  }
+
+  let bucket = rateBuckets.get(key);
+  if (!bucket || now - bucket.startedAt >= rateLimitWindowMs) {
+    bucket = { startedAt: now, count: 0 };
+    rateBuckets.set(key, bucket);
+  }
+  if (bucket.count >= rateLimitMax) {
+    return Math.max(1, Math.ceil((bucket.startedAt + rateLimitWindowMs - now) / 1000));
+  }
+  bucket.count += 1;
+  return 0;
+}
+
+function requestContext(request, response) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
+  const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+  const abortIfDisconnected = () => {
+    if (!response.writableEnded) controller.abort();
+  };
+  request.on("aborted", abortIfDisconnected);
+  response.on("close", abortIfDisconnected);
+  return {
+    signal: controller.signal,
+    cleanup() {
+      clearTimeout(timeout);
+      request.off("aborted", abortIfDisconnected);
+      response.off("close", abortIfDisconnected);
+    },
+  };
+}
+
+async function fetchProvider(url, options, context) {
   try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
+    const response = await fetch(url, { ...options, signal: context?.signal });
     const text = await response.text();
     let payload;
     try {
@@ -113,7 +201,9 @@ async function fetchProvider(url, options) {
     }
     if (!response.ok) {
       const error = new Error("Voice provider request failed");
-      error.statusCode = response.status;
+      error.statusCode = 502;
+      error.providerStatus = response.status;
+      error.code = "provider_unavailable";
       error.providerEndpoint = new URL(url).pathname;
       error.providerMessage = cleanText(
         payload.error?.message || payload.message || payload.detail || payload.raw,
@@ -122,12 +212,13 @@ async function fetchProvider(url, options) {
       throw error;
     }
     return payload;
-  } finally {
-    clearTimeout(timeout);
+  } catch (error) {
+    if (error.name === "AbortError") throw appError(504, "timeout", "Provider request timed out");
+    throw error;
   }
 }
 
-async function transcribe(audio, mimeType) {
+async function transcribe(audio, mimeType, context) {
   const form = new FormData();
   const contentType = normalizeMimeType(mimeType) || "audio/webm";
   form.append("file", new Blob([audio], { type: contentType }), audioFileName(contentType));
@@ -138,10 +229,10 @@ async function transcribe(audio, mimeType) {
     method: "POST",
     headers: { "api-subscription-key": sarvamKey },
     body: form,
-  });
+  }, context);
 }
 
-async function complete(transcript, languageCode) {
+async function complete(transcript, languageCode, context) {
   const languageName = languageNameByCode[languageCode] || "English";
   const payload = await fetchProvider("https://api.sarvam.ai/v1/chat/completions", {
     method: "POST",
@@ -160,15 +251,15 @@ async function complete(transcript, languageCode) {
       ],
       temperature: 0.2,
       top_p: 0.9,
-      max_tokens: 120,
+      max_tokens: 90,
       reasoning_effort: null,
     }),
-  });
+  }, context);
 
-  return cleanText(payload.choices?.[0]?.message?.content, 520);
+  return cleanText(payload.choices?.[0]?.message?.content, 180);
 }
 
-async function speak(text, languageCode) {
+async function speak(text, languageCode, context) {
   const payload = await fetchProvider("https://api.sarvam.ai/text-to-speech", {
     method: "POST",
     headers: {
@@ -184,41 +275,46 @@ async function speak(text, languageCode) {
       temperature: 0.4,
       output_audio_codec: "wav",
     }),
-  });
+  }, context);
 
   return payload.audios?.[0] || null;
 }
 
-async function answerTurn(payload) {
+async function answerTurn(payload, context) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw appError(400, "invalid_request", "Request must be a JSON object");
+  }
   const submittedText = cleanText(payload?.text);
   const audio = decodeAudio(payload?.audioBase64);
   let transcript = submittedText;
   let languageCode = inferLanguage(transcript);
 
   if (sarvamKey && audio) {
-    const speech = await transcribe(audio, payload?.mimeType);
-    transcript = cleanText(speech.transcript) || submittedText;
-    languageCode = resolveLanguage(speech.language_code, transcript);
+    try {
+      const speech = await transcribe(audio, payload?.mimeType, context);
+      transcript = cleanText(speech.transcript) || submittedText;
+      languageCode = resolveLanguage(speech.language_code, transcript);
+    } catch (error) {
+      if (!submittedText) throw error;
+      console.error("speech-to-text unavailable; using browser transcript", error.statusCode || "unknown");
+    }
   }
 
   const isSafetyQuestion = safetyPattern.test(transcript);
-  if (!isSafetyQuestion && !sarvamKey) {
-    throw Object.assign(new Error("Sarvam API key is not configured"), { statusCode: 503 });
-  }
-  if (!isSafetyQuestion && !transcript) {
-    throw Object.assign(new Error("No question was received"), { statusCode: 400 });
-  }
+  if (!transcript) throw appError(400, "no_question", "No question was received");
+  if (!isSafetyQuestion && !sarvamKey) throw appError(503, "not_configured", "Sarvam API key is not configured");
 
-  const answer = isSafetyQuestion ? safeFallback() : await complete(transcript, languageCode);
-  const finalAnswer = cleanText(answer, 240);
+  const answer = isSafetyQuestion ? safeFallback(languageCode) : await complete(transcript, languageCode, context);
+  let finalAnswer = cleanText(answer, 180);
+  if (safetyPattern.test(finalAnswer)) finalAnswer = safeFallback(languageCode);
   if (!finalAnswer) {
-    throw Object.assign(new Error("The voice provider returned no answer"), { statusCode: 502 });
+    throw appError(502, "provider_unavailable", "The voice provider returned no answer");
   }
 
   let audioBase64 = null;
   if (sarvamKey && finalAnswer) {
     try {
-      audioBase64 = await speak(finalAnswer, languageCode);
+      audioBase64 = await speak(finalAnswer, languageCode, context);
     } catch (error) {
       console.error("text-to-speech unavailable", error.statusCode || "unknown");
     }
@@ -247,9 +343,8 @@ async function serveStatic(request, response, pathname) {
     const extension = path.extname(filePath);
     response.writeHead(200, {
       "Content-Type": mimeTypes[extension] || "application/octet-stream",
-      "Cache-Control": pathname === "/sw.js" ? "no-cache" : "public, max-age=3600",
-      "X-Content-Type-Options": "nosniff",
-      "Referrer-Policy": "no-referrer",
+      "Cache-Control": "no-cache",
+      ...securityHeaders,
     });
     response.end(body);
   } catch (error) {
@@ -270,22 +365,46 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method === "POST" && url.pathname === "/api/ask") {
+    const requestId = randomUUID();
+    response.setHeader("X-Request-ID", requestId);
+    const retryAfter = checkRateLimit(clientKey(request));
+    if (retryAfter) {
+      response.setHeader("Retry-After", String(retryAfter));
+      sendJson(response, 429, { error: "rate_limited", message: publicMessages.rate_limited });
+      return;
+    }
+    if (activeTurns >= maxConcurrentTurns) {
+      sendJson(response, 503, { error: "busy", message: publicMessages.busy });
+      return;
+    }
+    activeTurns += 1;
+    const context = requestContext(request, response);
     try {
+      const contentType = String(request.headers["content-type"] || "").split(";", 1)[0].trim().toLowerCase();
+      if (contentType !== "application/json") throw appError(415, "invalid_request", "JSON is required");
       const body = await readRequestBody(request);
-      const payload = JSON.parse(body || "{}");
-      sendJson(response, 200, await answerTurn(payload));
+      let payload;
+      try {
+        payload = JSON.parse(body || "{}");
+      } catch {
+        throw appError(400, "invalid_json", "Invalid JSON");
+      }
+      if (!response.destroyed) sendJson(response, 200, await answerTurn(payload, context));
     } catch (error) {
       const statusCode = error.statusCode || 502;
+      const code = error.code || "provider_unavailable";
       console.error(
         "voice turn failed",
+        requestId,
         statusCode,
+        error.providerStatus || "local",
         error.providerEndpoint || "local",
         error.providerMessage || error.message || "unknown error",
       );
-      sendJson(response, statusCode, {
-        error: "voice_turn_failed",
-        message: "The lamp could not finish that answer. Please try again.",
-      });
+      if (!response.destroyed) sendJson(response, statusCode, { error: code, message: error.publicMessage || publicMessages[code] || publicMessages.provider_unavailable });
+    } finally {
+      activeTurns -= 1;
+      context.cleanup();
     }
     return;
   }
@@ -297,6 +416,10 @@ const server = http.createServer(async (request, response) => {
 
   sendText(response, 405, "Method not allowed", "text/plain; charset=utf-8");
 });
+
+server.requestTimeout = requestTimeoutMs + 5_000;
+server.headersTimeout = 10_000;
+server.keepAliveTimeout = 5_000;
 
 server.listen(port, "0.0.0.0", () => {
   console.log(`Little Lamp is listening on http://localhost:${port}`);

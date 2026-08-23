@@ -8,7 +8,13 @@ const state = {
   recognition: null,
   transcript: "",
   answer: "",
+  languageCode: "en-IN",
   lastAudio: null,
+  pressAttempt: 0,
+  permissionPending: false,
+  finishRequested: false,
+  keyboardActive: false,
+  serviceConfigured: false,
 };
 
 const elements = {
@@ -20,11 +26,6 @@ const elements = {
   statusHelper: document.querySelector("#status-helper"),
   talkButton: document.querySelector("#talk-button"),
   talkLabel: document.querySelector("#talk-label"),
-  answerCard: document.querySelector("#answer-card"),
-  answerLabel: document.querySelector("#answer-label"),
-  answerText: document.querySelector("#answer-text"),
-  repeatButton: document.querySelector("#repeat-button"),
-  askAgainButton: document.querySelector("#ask-again-button"),
 };
 
 const copy = {
@@ -55,9 +56,28 @@ const copy = {
   error: {
     kicker: "try again",
     status: "I didn’t catch that",
-    helper: "Ask a little closer to the microphone.",
+    helper: "Hold the button and try again.",
     button: "try again",
   },
+};
+
+const languageTagByCode = {
+  "en-IN": "en",
+  "hi-IN": "hi",
+  "mr-IN": "mr",
+  "gu-IN": "gu",
+};
+
+const errorCopy = {
+  invalid_json: "I did not catch that. Please hold the button and try again.",
+  invalid_request: "I did not catch a question. Please try again.",
+  no_question: "I did not hear a question. Hold the button and try again.",
+  request_too_large: "That question is too large. Please try again.",
+  not_configured: "The lamp needs a grown-up to finish setting it up.",
+  rate_limited: "Let’s take a short pause, then ask again.",
+  busy: "The lamp is helping another question. Please try again.",
+  timeout: "That answer took too long. Please try again.",
+  provider_unavailable: "The lamp needs a little rest. Please try again.",
 };
 
 function setMode(mode) {
@@ -69,14 +89,17 @@ function setMode(mode) {
   elements.statusHelper.textContent = nextCopy.helper;
   elements.talkLabel.textContent = nextCopy.button;
   elements.talkButton.dataset.mode = mode;
-  elements.talkButton.disabled = mode === "thinking";
+  elements.talkButton.disabled = mode === "thinking" || !state.serviceConfigured;
+  elements.talkButton.setAttribute("aria-pressed", String(mode === "listening"));
   elements.talkButton.setAttribute("aria-label", mode === "listening" ? "Listening to your question" : `${nextCopy.button}, button`);
+  document.documentElement.lang = languageTagByCode[state.languageCode] || "en";
 }
 
-function showAnswer(answer, transcript = "") {
+function showAnswer(answer, transcript = "", languageCode = "en-IN") {
   state.answer = answer;
   state.transcript = transcript || state.transcript;
-  elements.answerCard.hidden = true;
+  state.languageCode = languageCode || "en-IN";
+  document.documentElement.lang = languageTagByCode[state.languageCode] || "en";
 }
 
 function cleanupStream() {
@@ -133,15 +156,19 @@ async function beginListening() {
   if (state.mode === "thinking") return;
   if (state.mode === "speaking") resetForNextQuestion();
 
+  const attempt = state.pressAttempt + 1;
+  state.pressAttempt = attempt;
   state.pressActive = true;
   state.finishStarted = false;
+  state.finishRequested = false;
+  state.permissionPending = true;
   state.chunks = [];
   state.transcript = "";
   state.answer = "";
-  elements.answerCard.hidden = true;
   setMode("listening");
 
   if (!navigator.mediaDevices?.getUserMedia) {
+    state.permissionPending = false;
     setMode("error");
     elements.statusHelper.textContent = "This browser cannot use its microphone here.";
     return;
@@ -149,22 +176,36 @@ async function beginListening() {
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    if (!state.pressActive) {
+    state.permissionPending = false;
+    if (attempt !== state.pressAttempt || !state.pressActive) {
       stream.getTracks().forEach((track) => track.stop());
+      state.finishRequested = false;
+      setMode("error");
+      elements.statusHelper.textContent = "I did not hear a question. Hold the button and try again.";
       return;
     }
     state.mediaStream = stream;
     const mimeType = chooseMimeType();
     if (window.MediaRecorder) {
-      state.mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-      state.mediaRecorder.ondataavailable = (event) => {
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      state.mediaRecorder = recorder;
+      recorder.ondataavailable = (event) => {
         if (event.data.size > 0) state.chunks.push(event.data);
       };
-      state.mediaRecorder.start(250);
+      recorder.onerror = () => {
+        if (attempt !== state.pressAttempt) return;
+        state.mediaRecorder = null;
+        cleanupStream();
+        setMode("error");
+        elements.statusHelper.textContent = "I did not catch that. Hold the button and try again.";
+      };
+      recorder.start(250);
     }
     startBrowserRecognition();
-    if (!state.pressActive) finishListening();
+    if (!state.pressActive || state.finishRequested) finishListening();
   } catch {
+    state.permissionPending = false;
+    state.finishRequested = false;
     cleanupStream();
     setMode("error");
     elements.statusHelper.textContent = "Ask a grown-up to turn on the microphone, then try again.";
@@ -181,9 +222,15 @@ function blobToDataUrl(blob) {
 }
 
 async function finishListening() {
-  if (state.finishStarted || state.mode !== "listening") return;
-  state.finishStarted = true;
+  if (state.finishStarted) return;
   state.pressActive = false;
+  if (state.permissionPending) {
+    state.finishRequested = true;
+    setMode("thinking");
+    return;
+  }
+  if (state.mode !== "listening") return;
+  state.finishStarted = true;
   stopBrowserRecognition();
   setMode("thinking");
 
@@ -192,10 +239,16 @@ async function finishListening() {
   if (recorder && recorder.state !== "inactive") {
     recorder.onstop = async () => {
       const blob = state.chunks.length ? new Blob(state.chunks, { type: recorder.mimeType || "audio/webm" }) : null;
+      state.chunks = [];
       cleanupStream();
       await sendTurn(blob);
     };
-    recorder.stop();
+    try {
+      recorder.stop();
+    } catch {
+      cleanupStream();
+      showError({ code: "no_question" });
+    }
     return;
   }
 
@@ -204,31 +257,44 @@ async function finishListening() {
 }
 
 async function sendTurn(blob, textOverride = "") {
+  const questionText = textOverride || state.transcript;
+  if (!blob && !questionText) {
+    showError({ code: "no_question" });
+    return;
+  }
   try {
     const audioBase64 = blob ? await blobToDataUrl(blob) : null;
     const response = await fetch("/api/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        text: textOverride || state.transcript,
+        text: questionText,
         audioBase64,
         mimeType: blob?.type || null,
       }),
-      signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(25_000) : undefined,
+      signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(30_000) : undefined,
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.message || "voice turn failed");
-    showAnswer(result.answer, result.transcript);
+    if (!response.ok) {
+      const error = new Error(result.message || "voice turn failed");
+      error.code = result.error;
+      throw error;
+    }
+    showAnswer(result.answer, result.transcript, result.languageCode);
     setMode("speaking");
     if (result.audioBase64) {
-      playProviderAudio(result.audioBase64, result.audioMimeType || "audio/wav");
+      playProviderAudio(result.audioBase64, result.audioMimeType || "audio/wav", result.languageCode);
     } else {
       speakWithBrowser(result.answer, result.languageCode);
     }
-  } catch {
-    setMode("error");
-    elements.statusHelper.textContent = "The lamp could not hear that. Hold the button and speak again.";
+  } catch (error) {
+    showError(error);
   }
+}
+
+function showError(error) {
+  setMode("error");
+  elements.statusHelper.textContent = errorCopy[error?.code] || "The lamp needs a little rest. Please try again.";
 }
 
 function speakWithBrowser(text, languageCode = "en-IN") {
@@ -246,29 +312,20 @@ function speakWithBrowser(text, languageCode = "en-IN") {
   window.speechSynthesis.speak(utterance);
 }
 
-function playProviderAudio(base64, mimeType) {
+function playProviderAudio(base64, mimeType, languageCode) {
   const audio = new Audio(`data:${mimeType};base64,${base64}`);
   state.lastAudio = audio;
   audio.onended = () => setMode("idle");
-  audio.onerror = () => speakWithBrowser(state.answer);
-  audio.play().catch(() => speakWithBrowser(state.answer));
-}
-
-function repeatAnswer() {
-  if (!state.answer) return;
-  if (state.lastAudio) {
-    state.lastAudio.currentTime = 0;
-    setMode("speaking");
-    state.lastAudio.play().catch(() => speakWithBrowser(state.answer));
-    return;
-  }
-  setMode("speaking");
-  speakWithBrowser(state.answer, "en-IN");
+  audio.onerror = () => speakWithBrowser(state.answer, languageCode || state.languageCode);
+  audio.play().catch(() => speakWithBrowser(state.answer, languageCode || state.languageCode));
 }
 
 function resetForNextQuestion() {
+  state.pressAttempt += 1;
   state.pressActive = false;
   state.finishStarted = false;
+  state.permissionPending = false;
+  state.finishRequested = false;
   stopBrowserRecognition();
   cleanupStream();
   state.lastAudio?.pause();
@@ -276,7 +333,7 @@ function resetForNextQuestion() {
   window.speechSynthesis?.cancel();
   state.answer = "";
   state.transcript = "";
-  elements.answerCard.hidden = true;
+  state.languageCode = "en-IN";
   setMode("idle");
 }
 
@@ -285,11 +342,13 @@ async function checkService() {
     const response = await fetch("/api/health");
     const result = await response.json();
     const configured = Boolean(result.configured);
+    state.serviceConfigured = configured;
     elements.readyLabel.textContent = configured ? "ready to listen" : "setup needed";
     elements.readyPill.dataset.configured = String(configured);
-    elements.talkButton.disabled = !configured;
+    setMode(state.mode);
     if (!configured) elements.statusHelper.textContent = "Ask a grown-up to finish setting up the lamp.";
   } catch {
+    state.serviceConfigured = false;
     elements.readyLabel.textContent = "not connected";
     elements.readyPill.dataset.configured = "false";
     elements.talkButton.disabled = true;
@@ -309,10 +368,17 @@ elements.talkButton.addEventListener("pointerup", (event) => {
 });
 elements.talkButton.addEventListener("pointercancel", finishListening);
 elements.talkButton.addEventListener("lostpointercapture", finishListening);
-elements.repeatButton.addEventListener("click", repeatAnswer);
-elements.askAgainButton.addEventListener("click", () => {
-  resetForNextQuestion();
-  elements.talkButton.focus();
+elements.talkButton.addEventListener("keydown", (event) => {
+  if (!["Enter", " "].includes(event.key) || event.repeat) return;
+  event.preventDefault();
+  state.keyboardActive = true;
+  beginListening();
+});
+elements.talkButton.addEventListener("keyup", (event) => {
+  if (!["Enter", " "].includes(event.key) || !state.keyboardActive) return;
+  event.preventDefault();
+  state.keyboardActive = false;
+  finishListening();
 });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && state.mode === "listening") finishListening();

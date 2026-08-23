@@ -1,5 +1,5 @@
-const CACHE_NAME = "little-lamp-shell-v8";
-const SHELL = ["/", "/index.html", "/styles.css?v=8", "/tokens.css", "/app.js?v=5", "/manifest.webmanifest", "/icon.svg"];
+const CACHE_NAME = "little-lamp-shell-v9";
+const SHELL = ["/", "/index.html", "/styles.css?v=9", "/tokens.css", "/app.js?v=6", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL)));
