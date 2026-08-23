@@ -76,9 +76,7 @@ function setMode(mode) {
 function showAnswer(answer, transcript = "") {
   state.answer = answer;
   state.transcript = transcript || state.transcript;
-  elements.answerLabel.textContent = state.transcript ? "a little answer" : "lamp says";
-  elements.answerText.textContent = answer;
-  elements.answerCard.hidden = !answer;
+  elements.answerCard.hidden = true;
 }
 
 function cleanupStream() {
@@ -229,7 +227,7 @@ async function sendTurn(blob, textOverride = "") {
     }
   } catch {
     setMode("error");
-    elements.statusHelper.textContent = "The lamp needs another try. Check the internet and ask again.";
+    elements.statusHelper.textContent = "The lamp could not hear that. Hold the button and speak again.";
   }
 }
 
