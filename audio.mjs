@@ -8,8 +8,12 @@ const extensionByMimeType = {
   "audio/webm": "webm",
 };
 
+export function normalizeMimeType(mimeType) {
+  return typeof mimeType === "string" ? mimeType.split(";", 1)[0].trim().toLowerCase() : "";
+}
+
 export function audioFileName(mimeType) {
-  const type = typeof mimeType === "string" ? mimeType.split(";", 1)[0].trim().toLowerCase() : "";
+  const type = normalizeMimeType(mimeType);
   return `question.${extensionByMimeType[type] || "webm"}`;
 }
 

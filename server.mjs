@@ -2,7 +2,7 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { audioFileName, decodeAudio } from "./audio.mjs";
+import { audioFileName, decodeAudio, normalizeMimeType } from "./audio.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.join(root, "public");
@@ -115,7 +115,8 @@ async function fetchProvider(url, options) {
 
 async function transcribe(audio, mimeType) {
   const form = new FormData();
-  form.append("file", new Blob([audio], { type: mimeType || "audio/webm" }), audioFileName(mimeType));
+  const contentType = normalizeMimeType(mimeType) || "audio/webm";
+  form.append("file", new Blob([audio], { type: contentType }), audioFileName(contentType));
   form.append("model", "saaras:v3");
   form.append("mode", "codemix");
 
