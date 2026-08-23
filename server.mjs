@@ -2,6 +2,7 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { decodeAudio } from "./audio.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.join(root, "public");
@@ -82,13 +83,6 @@ function inferLanguage(text) {
 
 function safeFallback() {
   return "Please ask Mama, Papa, or another trusted grown-up about that. They can help you stay safe.";
-}
-
-function decodeAudio(value) {
-  if (typeof value !== "string" || value.length === 0) return null;
-  const encoded = value.replace(/^data:[^;]+;base64,/u, "");
-  const buffer = Buffer.from(encoded, "base64");
-  return buffer.length > 0 ? buffer : null;
 }
 
 async function fetchProvider(url, options) {

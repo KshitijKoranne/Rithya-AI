@@ -5,6 +5,7 @@ RUN apk add --no-cache curl
 WORKDIR /app
 
 COPY package.json ./
+COPY audio.mjs ./
 COPY server.mjs smoke.mjs README.md ./
 COPY public ./public
 

@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
+import { decodeAudio } from "./audio.mjs";
 
 const baseUrl = process.env.APP_URL || "http://localhost:3000";
+
+assert.deepEqual(
+  decodeAudio("data:audio/webm;codecs=opus;base64,AAAA"),
+  Buffer.from("AAAA", "base64"),
+  "codec-bearing audio data URLs should decode without their metadata",
+);
+assert.equal(decodeAudio("data:audio/webm;base64,not-base64!"), null, "invalid audio data should be rejected");
 
 const health = await fetch(`${baseUrl}/api/health`);
 assert.equal(health.status, 200, "health endpoint should respond");
