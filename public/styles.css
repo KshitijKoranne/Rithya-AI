@@ -48,6 +48,7 @@ a:focus-visible {
   display: flex;
   flex-direction: column;
   width: min(100%, 760px);
+  height: 100dvh;
   min-height: 100dvh;
   margin: 0 auto;
   padding: max(var(--space-5), env(safe-area-inset-top)) var(--space-5) max(var(--space-5), env(safe-area-inset-bottom));
@@ -139,11 +140,12 @@ a:focus-visible {
   flex-direction: column;
   align-items: center;
   width: 100%;
+  min-height: 0;
 }
 
 .welcome-block {
   width: min(100%, 500px);
-  margin-top: clamp(var(--space-10), 9vh, var(--space-16));
+  margin-top: clamp(var(--space-6), 4vh, var(--space-8));
   text-align: center;
 }
 
@@ -183,8 +185,8 @@ h1 {
   position: relative;
   display: grid;
   width: min(100%, 540px);
-  min-height: clamp(300px, 46vh, 410px);
-  margin-top: clamp(var(--space-8), 7vh, var(--space-12));
+  min-height: clamp(220px, 32vh, 300px);
+  margin-top: clamp(var(--space-4), 2.5vh, var(--space-6));
   place-items: center;
 }
 
@@ -399,7 +401,7 @@ h1 {
   flex-direction: column;
   align-items: center;
   width: min(100%, 440px);
-  margin-top: clamp(var(--space-6), 5vh, var(--space-10));
+  margin-top: clamp(var(--space-3), 2vh, var(--space-4));
   text-align: center;
 }
 
@@ -407,22 +409,23 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 76px;
+  min-height: 62px;
 }
 
 .status-line strong {
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
   font-family: var(--font-display);
-  font-size: 1.48rem;
+  font-size: 1.36rem;
   font-weight: 600;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1.05;
 }
 
 .status-line > span:last-child {
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
   color: var(--color-ink-soft);
-  font-size: 0.92rem;
+  font-size: 0.86rem;
+  line-height: 1.2;
 }
 
 .talk-button {
@@ -431,8 +434,8 @@ h1 {
   justify-content: center;
   gap: var(--space-3);
   width: min(100%, 316px);
-  min-height: 76px;
-  margin-top: var(--space-4);
+  min-height: 72px;
+  margin-top: var(--space-2);
   padding: 0 var(--space-6);
   border: 0;
   border-radius: 30px;
@@ -484,7 +487,7 @@ h1 {
 }
 
 .footer-note {
-  margin-top: var(--space-8);
+  margin-top: var(--space-4);
   color: var(--color-ink-faint);
   font-size: 0.75rem;
   font-weight: 700;
@@ -561,11 +564,11 @@ body[data-state="error"] .orbit {
   }
 
   .welcome-block {
-    margin-top: var(--space-12);
+    margin-top: clamp(var(--space-6), 4vh, var(--space-8));
   }
 
   .lamp-stage {
-    min-height: 390px;
+    min-height: clamp(240px, 35vh, 320px);
   }
 }
 
@@ -576,12 +579,12 @@ body[data-state="error"] .orbit {
   }
 
   .welcome-block {
-    margin-top: var(--space-8);
+    margin-top: var(--space-6);
   }
 
   .lamp-stage {
-    min-height: 250px;
-    margin-top: var(--space-6);
+    min-height: 220px;
+    margin-top: var(--space-4);
   }
 
   .orbit-one {
@@ -600,54 +603,82 @@ body[data-state="error"] .orbit {
   }
 
   .control-dock {
-    margin-top: var(--space-6);
+    margin-top: var(--space-4);
   }
 
   .status-line {
-    min-height: 68px;
+    min-height: 60px;
   }
 
   .talk-button {
-    min-height: 72px;
-    margin-top: var(--space-3);
+    min-height: 68px;
+    margin-top: var(--space-2);
   }
 
   .footer-note {
-    margin-top: var(--space-4);
+    margin-top: var(--space-2);
     gap: var(--space-2);
   }
 }
 
 @media (max-width: 480px) and (max-height: 720px) {
   .app-shell {
+    padding-top: max(var(--space-3), env(safe-area-inset-top));
     padding-bottom: max(var(--space-2), env(safe-area-inset-bottom));
   }
 
   .welcome-block {
-    margin-top: var(--space-4);
+    margin-top: var(--space-3);
   }
 
   .lamp-stage {
-    min-height: 190px;
-    margin-top: var(--space-3);
+    min-height: 174px;
+    margin-top: var(--space-2);
+  }
+
+  h1 {
+    margin-top: var(--space-1);
+    margin-bottom: var(--space-1);
+    font-size: clamp(2.2rem, 10vw, 3rem);
+  }
+
+  .intro {
+    font-size: 0.96rem;
+    line-height: 1.3;
+  }
+
+  .lamp {
+    width: clamp(174px, 48vw, 190px);
   }
 
   .control-dock {
-    margin-top: var(--space-3);
+    margin-top: var(--space-2);
   }
 
   .status-line {
-    min-height: 62px;
+    min-height: 54px;
+  }
+
+  .status-line strong {
+    margin-top: var(--space-1);
+    font-size: 1.3rem;
+  }
+
+  .status-line > span:last-child {
+    margin-top: var(--space-1);
+    font-size: 0.8rem;
+    line-height: 1.15;
   }
 
   .talk-button {
-    min-height: 68px;
-    margin-top: var(--space-2);
+    min-height: 64px;
+    margin-top: var(--space-1);
   }
 
   .footer-note {
-    margin-top: var(--space-2);
-    font-size: 0.7rem;
+    margin-top: var(--space-1);
+    font-size: 0.68rem;
+    line-height: 1.2;
   }
 }
 
