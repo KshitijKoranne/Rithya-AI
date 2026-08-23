@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { decodeAudio } from "./audio.mjs";
+import { audioFileName, decodeAudio } from "./audio.mjs";
 
 const baseUrl = process.env.APP_URL || "http://localhost:3000";
 
@@ -9,6 +9,8 @@ assert.deepEqual(
   "codec-bearing audio data URLs should decode without their metadata",
 );
 assert.equal(decodeAudio("data:audio/webm;base64,not-base64!"), null, "invalid audio data should be rejected");
+assert.equal(audioFileName("audio/webm;codecs=opus"), "question.webm", "WebM uploads should keep a WebM filename");
+assert.equal(audioFileName("audio/wav"), "question.wav", "WAV uploads should keep a WAV filename");
 
 const health = await fetch(`${baseUrl}/api/health`);
 assert.equal(health.status, 200, "health endpoint should respond");

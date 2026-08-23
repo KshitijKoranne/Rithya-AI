@@ -1,3 +1,18 @@
+const extensionByMimeType = {
+  "audio/aac": "aac",
+  "audio/flac": "flac",
+  "audio/mp4": "mp4",
+  "audio/mpeg": "mp3",
+  "audio/ogg": "ogg",
+  "audio/wav": "wav",
+  "audio/webm": "webm",
+};
+
+export function audioFileName(mimeType) {
+  const type = typeof mimeType === "string" ? mimeType.split(";", 1)[0].trim().toLowerCase() : "";
+  return `question.${extensionByMimeType[type] || "webm"}`;
+}
+
 export function decodeAudio(value) {
   if (typeof value !== "string" || value.length === 0) return null;
 
