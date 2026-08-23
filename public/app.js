@@ -162,7 +162,7 @@ async function beginListening() {
       state.mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) state.chunks.push(event.data);
       };
-      state.mediaRecorder.start();
+      state.mediaRecorder.start(250);
     }
     startBrowserRecognition();
     if (!state.pressActive) finishListening();
