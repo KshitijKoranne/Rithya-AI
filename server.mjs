@@ -21,6 +21,13 @@ const mimeTypes = {
 
 const safetyPattern = /medicine|tablet|pill|दवा|गोली|औषध|દવા|ગોળી|hurt|bleed|blood|fire|knife|stranger|address|password|phone number|emergency|ambulance|suicide|kill|die/i;
 
+const languageNameByCode = {
+  "en-IN": "English",
+  "hi-IN": "Hindi",
+  "mr-IN": "Marathi",
+  "gu-IN": "Gujarati",
+};
+
 const systemPrompt = `You are Little Lamp, a gentle voice helper for a six-year-old child.
 Answer in the same language and script style as the child's question. Hindi, Marathi, Gujarati, English, and natural code-mixing are welcome.
 Use one short sentence, or at most two very short sentences. Keep the answer under 180 characters. If the question is in English, answer only in English. Never switch languages unless the child asks.
@@ -134,7 +141,8 @@ async function transcribe(audio, mimeType) {
   });
 }
 
-async function complete(transcript) {
+async function complete(transcript, languageCode) {
+  const languageName = languageNameByCode[languageCode] || "English";
   const payload = await fetchProvider("https://api.sarvam.ai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -142,10 +150,13 @@ async function complete(transcript) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "sarvam-105b-conversations",
+      model: "sarvam-105b",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: transcript },
+        {
+          role: "user",
+          content: `Output language: ${languageName} only. Do not translate or switch languages. Question: ${transcript}`,
+        },
       ],
       temperature: 0.2,
       top_p: 0.9,
@@ -198,7 +209,7 @@ async function answerTurn(payload) {
     throw Object.assign(new Error("No question was received"), { statusCode: 400 });
   }
 
-  const answer = isSafetyQuestion ? safeFallback() : await complete(transcript);
+  const answer = isSafetyQuestion ? safeFallback() : await complete(transcript, languageCode);
   const finalAnswer = cleanText(answer, 240);
   if (!finalAnswer) {
     throw Object.assign(new Error("The voice provider returned no answer"), { statusCode: 502 });

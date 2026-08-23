@@ -16,7 +16,7 @@ The app requires a Sarvam API key for normal questions. Start the server with th
 SARVAM_API_KEY=your_key_here npm start
 ```
 
-The browser never receives the key. Audio is held in memory for one request and is not saved by this app. The server uses Saaras v3 for speech-to-text, Sarvam-105B Conversations for the answer, and Bulbul v3 for spoken output. Hindi is supported alongside Marathi, Gujarati, English, and code-mixed speech.
+The browser never receives the key. Audio is held in memory for one request and is not saved by this app. The server uses Saaras v3 for speech-to-text, Sarvam-105B for the answer, and Bulbul v3 for spoken output. Hindi is supported alongside Marathi, Gujarati, English, and code-mixed speech.
 
 ## Provider decision
 
