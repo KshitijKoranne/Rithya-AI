@@ -84,21 +84,6 @@ function safeFallback() {
   return "Please ask Mama, Papa, or another trusted grown-up about that. They can help you stay safe.";
 }
 
-function demoAnswer(text) {
-  const lower = text.toLocaleLowerCase("en-IN");
-  if (lower.includes("moon") || text.includes("चंद्र") || text.includes("चाँद") || text.includes("चांद") || text.includes("ચંદ્ર")) {
-    return "The Moon is very far away, so when our car moves, it still looks like the Moon is following us. It is just watching from a great distance.";
-  }
-  if (lower.includes("sky") || text.includes("आकाश") || text.includes("આકાશ")) {
-    return "The sky looks blue because tiny bits of sunlight spread the blue light around us. Blue light scatters more than most other colours.";
-  }
-  if (lower.includes("rain") || text.includes("पाऊस") || text.includes("बारिश") || text.includes("વરસાદ")) {
-    return "Rain starts when tiny water drops in a cloud join together and become heavy. Then they fall down to the ground.";
-  }
-  if (!text) return "I’m ready to listen. Hold the button and ask me anything you are wondering about.";
-  return "That is a lovely question. Let’s think about it together and find a clear answer.";
-}
-
 function decodeAudio(value) {
   if (typeof value !== "string" || value.length === 0) return null;
   const encoded = value.replace(/^data:[^;]+;base64,/u, "");
@@ -201,12 +186,18 @@ async function answerTurn(payload) {
   }
 
   const isSafetyQuestion = safetyPattern.test(transcript);
-  const answer = isSafetyQuestion
-    ? safeFallback()
-    : sarvamKey && transcript
-      ? await complete(transcript)
-      : demoAnswer(transcript);
-  const finalAnswer = cleanText(answer || demoAnswer(transcript), 520);
+  if (!isSafetyQuestion && !sarvamKey) {
+    throw Object.assign(new Error("Sarvam API key is not configured"), { statusCode: 503 });
+  }
+  if (!isSafetyQuestion && !transcript) {
+    throw Object.assign(new Error("No question was received"), { statusCode: 400 });
+  }
+
+  const answer = isSafetyQuestion ? safeFallback() : await complete(transcript);
+  const finalAnswer = cleanText(answer, 520);
+  if (!finalAnswer) {
+    throw Object.assign(new Error("The voice provider returned no answer"), { statusCode: 502 });
+  }
 
   let audioBase64 = null;
   if (sarvamKey && finalAnswer) {
@@ -218,7 +209,7 @@ async function answerTurn(payload) {
   }
 
   return {
-    mode: sarvamKey ? "sarvam" : "practice",
+    mode: isSafetyQuestion ? "safety" : "sarvam",
     transcript,
     languageCode,
     answer: finalAnswer,
@@ -288,5 +279,5 @@ const server = http.createServer(async (request, response) => {
 
 server.listen(port, "0.0.0.0", () => {
   console.log(`Little Lamp is listening on http://localhost:${port}`);
-  console.log(sarvamKey ? "Sarvam voice mode is configured." : "Practice mode: add SARVAM_API_KEY for real voice answers.");
+  console.log(sarvamKey ? "Sarvam voice mode is configured." : "Sarvam API key is not configured.");
 });

@@ -10,9 +10,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Without an API key, the app runs in practice mode. The sample question works, and supported browsers can use their built-in speech recognition and speech synthesis.
-
-For the real Sarvam voice path, start the server with the key in the environment:
+The app requires a Sarvam API key for normal questions. Start the server with the key in the environment:
 
 ```bash
 SARVAM_API_KEY=your_key_here npm start
@@ -24,7 +22,7 @@ The browser never receives the key. Audio is held in memory for one request and 
 
 Sarvam is the first choice for this private app because one provider covers the complete Hindi, Marathi, Gujarati, English, and mixed-language loop. Its current public rates are ₹30/hour for speech-to-text, ₹30/10,000 characters for Bulbul v3 speech, and ₹29.28/₹73.20 per million input/output chat tokens. A short turn with 10 seconds of speech and about 120 answer characters is roughly ₹0.45 before taxes or network costs; actual usage depends on audio and answer length.
 
-OpenAI and Claude can be tested later for text quality, but they would add a separate Indian-language speech setup. For this app, speech quality and language coverage matter more than choosing a large chat model. The built-in practice mode remains free for UI work and offline-friendly testing.
+OpenAI and Claude would add a separate Indian-language speech setup. For this app, speech quality and language coverage matter more than choosing a larger chat model.
 
 Prices change. Check [Sarvam's current pricing](https://docs.sarvam.ai/api/getting-started/pricing) before adding credits.
 

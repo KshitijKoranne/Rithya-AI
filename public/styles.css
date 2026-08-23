@@ -346,8 +346,7 @@ h1 {
   gap: var(--space-2);
 }
 
-.quiet-button,
-.example-question {
+.quiet-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -379,8 +378,7 @@ h1 {
   color: var(--color-ink);
 }
 
-.quiet-button:active,
-.example-question:active {
+.quiet-button:active {
   transform: scale(0.97);
 }
 
@@ -483,29 +481,6 @@ h1 {
 
 .talk-button[data-mode="error"] {
   background: var(--color-danger);
-}
-
-.example-question {
-  gap: var(--space-2);
-  margin-top: var(--space-4);
-  padding: 0 var(--space-3);
-  border: 0;
-  border-bottom: 1px solid var(--color-border-faint);
-  background: transparent;
-  color: var(--color-ink-soft);
-  font-size: 0.9rem;
-}
-
-.example-question:hover,
-.example-question:focus-visible {
-  border-color: var(--color-accent);
-  color: var(--color-accent-deep);
-}
-
-.example-prefix {
-  color: var(--color-ink-soft);
-  font-size: 0.67rem;
-  letter-spacing: 0.09em;
 }
 
 .footer-note {
@@ -634,10 +609,6 @@ body[data-state="error"] .orbit {
 
   .talk-button {
     min-height: 72px;
-    margin-top: var(--space-3);
-  }
-
-  .example-question {
     margin-top: var(--space-3);
   }
 

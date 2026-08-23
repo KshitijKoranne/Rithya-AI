@@ -25,7 +25,6 @@ const elements = {
   answerText: document.querySelector("#answer-text"),
   repeatButton: document.querySelector("#repeat-button"),
   askAgainButton: document.querySelector("#ask-again-button"),
-  exampleQuestion: document.querySelector("#example-question"),
 };
 
 const copy = {
@@ -287,11 +286,16 @@ async function checkService() {
   try {
     const response = await fetch("/api/health");
     const result = await response.json();
-    elements.readyLabel.textContent = result.configured ? "ready to listen" : "practice mode";
-    elements.readyPill.dataset.configured = String(Boolean(result.configured));
+    const configured = Boolean(result.configured);
+    elements.readyLabel.textContent = configured ? "ready to listen" : "setup needed";
+    elements.readyPill.dataset.configured = String(configured);
+    elements.talkButton.disabled = !configured;
+    if (!configured) elements.statusHelper.textContent = "Ask a grown-up to finish setting up the lamp.";
   } catch {
-    elements.readyLabel.textContent = "offline practice";
+    elements.readyLabel.textContent = "not connected";
     elements.readyPill.dataset.configured = "false";
+    elements.talkButton.disabled = true;
+    elements.statusHelper.textContent = "The lamp needs a grown-up to check its connection.";
   }
 }
 
@@ -311,12 +315,6 @@ elements.repeatButton.addEventListener("click", repeatAnswer);
 elements.askAgainButton.addEventListener("click", () => {
   resetForNextQuestion();
   elements.talkButton.focus();
-});
-elements.exampleQuestion.addEventListener("click", () => {
-  resetForNextQuestion();
-  state.finishStarted = true;
-  setMode("thinking");
-  sendTurn(null, "Why does the moon follow our car?");
 });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && state.mode === "listening") finishListening();
